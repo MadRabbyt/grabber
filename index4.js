@@ -99,21 +99,37 @@ function starter(err, data) {
       var theQueue = new Queue('Q' + data.countdown + '');
 
       $('img').each((i, elem) => {
-        // var elem = $('img')[i];
-        var imgSrc = $(elem).attr('src');
-        logger.info('find image ' + imgSrc);
         var re = /\.(jpg|jpeg|png|bmp)(\|\d+)*/;
-        if (re.test(imgSrc)) {
-          var ext = re.exec(imgSrc)[1];
-          var pref = "data:image/"+ext+";base64,";
-          logger.info(imgSrc, ext, pref);
+        var imgThumbSrc = $(elem).attr('src');
+        var imgSrc = $(elem).attr('data-src_big');
+        if (imgSrc) {
+          logger.info('find big image ' + imgSrc);
+          if (re.test(imgSrc)) {
+            var ext = re.exec(imgSrc)[1];
+            var pref = "data:image/"+ext+";base64,";
+            logger.info(imgSrc, ext, pref);
 
-          theQueue.push();
-          request($(elem).attr('src'), {encoding: 'base64'}, (err, res, body) => {
-            // logger.info(pref+body);
-            $(elem).attr('src', pref+body);
-            theQueue.pop();
-          });
+            theQueue.push();
+            var src = /(.*\.(jpg|jpeg|png|bmp))(\|\d+)*/.exec($(elem).attr('data-src_big'))[1];
+            logger.info('try download image ' + src);
+            request(src, {encoding: 'base64'}, (err, res, body) => {
+              $(elem).attr('src', pref+body);
+              theQueue.pop();
+            });
+          }
+        } else {
+          logger.info('find image ' + imgThumbSrc);
+          if (re.test(imgThumbSrc)) {
+            var ext = re.exec(imgThumbSrc)[1];
+            var pref = "data:image/"+ext+";base64,";
+            logger.info(imgThumbSrc, ext, pref);
+
+            theQueue.push();
+            request($(elem).attr('src'), {encoding: 'base64'}, (err, res, body) => {
+              $(elem).attr('src', pref+body);
+              theQueue.pop();
+            });
+          }
         }
       });
 
@@ -125,7 +141,6 @@ function starter(err, data) {
         });
       });
       pageQueue.pop();
-      // var posts = $('.post_item');
     });
 
     pageQueue.addFinishEvent( function () {
@@ -136,4 +151,4 @@ function starter(err, data) {
 }
 
 
-starter(null, {countdown: 3560, diff: 20});
+starter(null, {countdown: 20, diff: 20});

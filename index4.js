@@ -1,15 +1,17 @@
 var request = require('request');
 var cheerio = require('cheerio');
 var fs = require('fs');
-var Queue = require('./queue').Queue;
-var config = require('./config');
 
 var log4js = require('log4js');
 log4js.loadAppender('file');
-log4js.addAppender(log4js.appenders.file('logs/grabber4.log'), 'grabber');
+log4js.addAppender(log4js.appenders.file('logs/grabber.log'), 'grabber');
 var logger = log4js.getLogger('grabber');
 
-var re = /\.(jpg|jpeg|png|bmp)(\|\d+)*/;
+var urlTemplate = 'https://vk.com/topic-4918594_27696136?offset=';
+var url = 'https://vk.com/topic-4918594_27696136?offset=0';
+var urlEnd = 'https://vk.com/topic-4918594_27696136?offset=3560';
+
+var counter = 0;
 var opt = {
   encoding: 'utf8'
 };
@@ -28,53 +30,50 @@ var saveInFile = function (fileName, body) {
     });
 }
 
-(function starter2(err, data) {
-  if (err) {
-    return logger.error(err.message);
+var queueNumber = 0;
+
+var Queue = function (aName) {
+  this.counter = 0;
+  this.name = (function() {
+        queueNumber++;
+        logger.info('new queue ' + aName + '/' + queueNumber);
+        return aName + '/' + queueNumber;
+      })();
+  this.finishEvents = [];
+  this.push = function () {
+    this.counter++;
+    logger.info('queue ' + this.name + ', inc counter ' + this.counter + '.');
   };
-  if (data.iterator >= data.finish) {
-    var url = data.url + data.iterator;
-
-    processUrl(url, () => {
-      data.iterator += data.delta;
-      starter2(null, data);
-    });
+  this.pop = function () {
+    this.counter--;
+    logger.info('queue ' + this.name + ', sub counter ' + this.counter + '.');
+    if (this.counter === 0) {
+      this.fireFinish();
+    }
   };
-}).(null, {
-  url: config.get('urlTemplate'),
-  iterator: config.get('interval:start'),
-  finish: config.get('interval:finish'),
-  delta: config.get('interval:delta'),
-});
+  this.addFinishEvent = function (func) {
+    logger.info('queue ' + this.name + ', add finish events(' + this.finishEvents.length + ').');
+    this.finishEvents.push(func);
+  };
+  this.addFireEvent = function (func) {
+    logger.info('queue ' + this.name + ', add fire events(' + this.finishEvents.length + ').');
+    this.finishEvents.push(func);
+    if (this.counter === 0) {
+      this.fireFinish();
+    }
+  };
+  this.fireFinish = function (){
+    logger.info('queue ' + this.name + ', fire finish.');
+    var func = null;
+    while (func=this.finishEvents.pop())
+    {
+      logger.info('queue ' + this.name + ', do events ' + this.finishEvents.length +' in fire finish.');
+      func();
+    }
+  };
 
-
-function precessUrl(url, callback) {
-  var pageQueue = new Queue('QP');
-
-  pageQueue.addFinishEvent( () => {
-
-  });
-
-  pageQueue.addFinishEvent( () => { callback(); });
-
-  pageQueue.push();
-  request(url, (err, res, body) => {
-    var $ = cheerio.load(body);
-
-    var before = $('a.mr_label').attr('href');
-    $('a.mr_label').attr('href', 'http://vk.com' + before);
-
-    var imgQueue = new Queue('QI');
-    $('img').each((i, elem) => {
-      var imgThumbSrc = $(elem).attr('src');
-      var imgSrc = $(elem).attr('data-src_big');
-
-      --> *
-    });
-    pageQueue.pop();
-  });
-
-}
+  return this;
+};
 
 function starter(err, data) {
   if (err) {
@@ -83,6 +82,7 @@ function starter(err, data) {
   if (data.countdown >= 0) {
     var pageQueue = new Queue('QP');
 
+    logger.info(JSON.stringify(data));
     var url = urlTemplate + data.countdown;
     pageQueue.push();
     request(url, (err, res, body) => {
@@ -137,7 +137,7 @@ function starter(err, data) {
         $('.post_item').each((i, elem) => {
           var postBody = $(elem).html();
           var a = $(elem).find('a[name^="post"]');
-          saveInFile('comming4/'+$(a).attr('name')+'.html', postBody);
+          saveInFile('comming/'+$(a).attr('name')+'.html', postBody);
         });
       });
       pageQueue.pop();

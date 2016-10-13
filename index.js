@@ -1,66 +1,63 @@
-var request = require('request');
-var cheerio = require('cheerio');
 var fs = require('fs');
+var Queue = require('./queue').Queue;
 
 var log4js = require('log4js');
 log4js.loadAppender('file');
-log4js.addAppender(log4js.appenders.file('logs/cheese.log'), 'cheese');
-var logger = log4js.getLogger('cheese');
+log4js.addAppender(log4js.appenders.file('logs/postform.log'), 'postform');
+var logger = log4js.getLogger('postform');
 
-var urlTemplate = 'https://vk.com/topic-4918594_27696136?offset=';
-var url = 'https://vk.com/topic-4918594_27696136?offset=0';
-var urlEnd = 'https://vk.com/topic-4918594_27696136?offset=3560';
+var getFileList = require('./postforming').getFileList;
+var reOrderArrayBy = require('./postforming').reOrderArrayBy;
+var addArrayIndex = require('./postforming').addArrayIndex;
 
-var counter = 0;
-var opt = {
-  encoding: 'utf8'
-};
+var order = [];
 
-
-var saveInFile = function (fileName, body) {
-  fs.writeFile(
-    fileName,
-    body,
-    opt,
-    (err) => {
-      if (err) {
-        throw new Error(err.message);
-      }
-      logger.info(fileName + ' - OK');
-    });
-}
-
-
-function starter(err, data) {
-  if (err) {
-    return logger.error(err.message);
+getFileList('./comming/', function (err, list) {
+  // logger.info(JSON.stringify(list));
+  heap = [];
+  for (i in list) {
+    re = /post(\d+)\.html/i;
+    if (re.test(list[i])) {
+      num = parseInt(re.exec(list[i])[1]);
+      heap.push({num: num, name: list[i]});
+    }
   }
-  if (data.countdown >= 0) {
-    logger.info(JSON.stringify(data));
-    var url = urlTemplate + data.countdown;
-    request(url, (err, res, body) => {
-      var theBody = body;
-      if (err) {
-        logger.error(err.message);
-        throw new Error(err.message);
-      }
-      var $ = cheerio.load(theBody);
 
-      var before = $('a.mr_label').attr('href');
-      $('a.mr_label').attr('href', 'http://vk.com' + before);
+  order = reOrderArrayBy(heap, 'num');
 
-      var posts = $('.post_item');
-      $('.post_item').each((i, elem) => {
-        var postBody = $(elem).html();
-        var a = $(elem).find('a[name^="post"]');
-        saveInFile('comming/'+$(a).attr('name')+'.html', postBody);
+  var lastIndex = order.length;
+  console.log(lastIndex);
+  console.log(order[i]);
+  var i = 1;
+
+  while(i <= lastIndex) {
+    // logger.info(order[i]);
+    var entity = order[i];
+
+    var queue = new Queue('Q');
+    queue.push();
+    fs.readFile('./comming/' + entity.name, function (err, body) {
+
+      var newBody = '',
+        navigator = '',
+        prevFile = '#',
+        nextFile = '#';
+      if (i !== 1) prevFile = entity.name;
+      nextFile = entity.name;
+      if (i === lastIndex) nextFile = '#';
+      navigator = '<a href="'+prevFile+'">Prev</a> <a href="'+nextFile+'">Next</a>';
+      newBody = navigator + body;
+
+      fs.writeFile('./comming/' + entity.name, newBody, function (err) {
+        if (err) throw err;
+        queue.pop();
       });
-
-      data.countdown -= data.diff;
-      starter(null, data);
     });
-  }
-}
 
+    queue.addFinishEvent(function () {
+      i++;
+    });
 
-starter(null, {countdown: 3560, diff: 20});
+  } // next order[i]
+
+});

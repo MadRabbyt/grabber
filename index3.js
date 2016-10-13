@@ -18,6 +18,7 @@ var opt = {
 
 
 var saveInFile = function (fileName, body) {
+  // foldersInPath(fileName); // need to do
   fs.writeFile(
     fileName,
     body,

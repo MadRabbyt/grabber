@@ -145,10 +145,12 @@ function starter(err, data) {
 
     pageQueue.addFinishEvent( function () {
       data.countdown -= data.diff;
-      starter(null, data);
+      setTimeout(function () {
+        starter(null, data);
+      }, 100);
     });
   }
 }
 
 
-starter(null, {countdown: 20, diff: 20});
+starter(null, {countdown: 3560, diff: 20});

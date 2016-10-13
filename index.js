@@ -23,41 +23,35 @@ getFileList('./comming/', function (err, list) {
     }
   }
 
+
   order = reOrderArrayBy(heap, 'num');
 
   var lastIndex = order.length;
-  console.log(lastIndex);
-  console.log(order[i]);
-  var i = 1;
+  logger.info('lastIndex ' + lastIndex);
+  var i = 0;
+  var entity = {};
+  var newBody = '',
+    navigator = '',
+    prevFile = '#',
+    nextFile = '#';
 
-  while(i <= lastIndex) {
-    // logger.info(order[i]);
-    var entity = order[i];
+  while(i < lastIndex) {
+    logger.info(i, order[i]);
+    entity = order[i];
 
-    var queue = new Queue('Q');
-    queue.push();
-    fs.readFile('./comming/' + entity.name, function (err, body) {
+    var body = fs.readFileSync('./comming/' + entity.name);
+    if (i !== 0) prevFile = order[i-1].name;
+    if (i === lastIndex-1) {
+      nextFile = '#';
+    } else {
+      nextFile = order[i+1].name;
+    }
+    navigator = '<a href="'+prevFile+'">Prev</a> <a href="'+nextFile+'">Next</a>';
+    newBody = navigator + body;
 
-      var newBody = '',
-        navigator = '',
-        prevFile = '#',
-        nextFile = '#';
-      if (i !== 1) prevFile = entity.name;
-      nextFile = entity.name;
-      if (i === lastIndex) nextFile = '#';
-      navigator = '<a href="'+prevFile+'">Prev</a> <a href="'+nextFile+'">Next</a>';
-      newBody = navigator + body;
+    fs.writeFileSync('./comming/' + entity.name, newBody);
 
-      fs.writeFile('./comming/' + entity.name, newBody, function (err) {
-        if (err) throw err;
-        queue.pop();
-      });
-    });
-
-    queue.addFinishEvent(function () {
-      i++;
-    });
-
+    i++;
   } // next order[i]
 
 });
